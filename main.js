@@ -1,26 +1,42 @@
-const mysql = require('mysql');
-const fs = require('fs');
-const request = require('request');
+'use strict'
 
-const imageCdnUrl = 'https://yw-web.yoworld.com/cdn/items';
-const swfCdnUrl = '';
+const Fs = require('fs')
+const Path = require('path')
+const Axios = require('axios')
+const mysql = require('mysql')
 
-!fs.existsSync(`item_images`) && fs.mkdirSync(`item_images`);
-
-const downloadImage = ((uri, path, filename, callback) => {
-    request.head(uri, () => {
-        let pieces = path.split('/');
-        !fs.existsSync(`item_images/${pieces[0]}`) && fs.mkdirSync(`item_images/${pieces[0]}`);
-        !fs.existsSync(`item_images/${pieces[0]}/${pieces[1]}`) && fs.mkdirSync(`item_images/${pieces[0]}/${pieces[1]}`);
-        request(uri).pipe(fs.createWriteStream(`item_images/${path}/${filename}`)).on('close', callback);
-    });
-})
+const cdnUrl = 'https://yw-web.yoworld.com/cdn/items'
 
 const con = mysql.createConnection({
     host: 'localhost',
     user:'root',
     password:''
 });
+
+async function downloadSwf (url, filename) {
+    const path = Path.resolve(__dirname, 'items', filename)
+    const response = await Axios({
+        method: 'GET',
+        url: url,
+        responseType: 'stream',
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+    })
+        .catch((err) => {
+            console.log('error downloading ' + filename)
+        })
+    response.data.pipe(Fs.createWriteStream(path))
+
+    return new Promise((resolve, reject) => {
+        response.data.on('end', () => {
+            console.log(`Downloaded ${filename}`)
+            resolve()
+        })
+        response.data.on('error', (err) => {
+            console.log(err)
+            reject()
+        })
+    })
+}
 
 const items = [];
 
@@ -30,34 +46,33 @@ con.connect(err => {
 
     const sql = "SELECT item_id, filename from mylife_main.items";
 
-    con.query(sql, (err, res) => {
+    con.query(sql, async (err, res) => {
         if(err) throw err;
+
+        console.log('Reading items from db...')
 
         for(let item of res) {
             const first = String(item.item_id).substring(0,2);
             const next = String(item.item_id).substring(2,4);
             const path = `${first}/${next}/${item.item_id}`;
-            const saveName = `${item.item_id}_60_60.gif`
-
-            /*
-             downloadImage(`${imageCdnUrl}/${path}/${saveName}`, `${first}/${next}`, saveName, () => {
-                 console.log('done');
-             });
-   */
+            const saveName = `${item.item_id}.swf`
+            const swfUrl = `${cdnUrl}/${path}/${saveName}`
             if(item.item_id > 999) {
-                console.log(`${imageCdnUrl}/${path}/${saveName}`)
-                downloadImage(`${imageCdnUrl}/${path}/${saveName}`, `${first}/${next}`, saveName, () => {
-                    console.log('done');
-                });
+                if(item.hasOwnProperty("filename")) {
+                    if(typeof(items.filename) !== null) items.push({ swfUrl, filename: `${item.filename}.swf`})
+                }
+
             }
-            items.push({
-                imageUrl:
-                itemId:item.item_id,
-                filename:item.filename,
-                path:`${first}/${next}/${item.item_id}`
-            });
         }
 
+        console.log('Done.')
 
+        console.log('Starting asset retrieval...')
+
+        for(let item of items) {
+            await downloadSwf(item.swfUrl, item.filename);
+        }
+
+        console.log('Done.')
     });
 })
