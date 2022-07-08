@@ -18,8 +18,17 @@ con.connect(err => {
         if(err) throw err;
 
         for(let item of res) {
-            items.push({itemId:item.item_id, filename:item.filename});
+            let first = String(item.item_id).substring(0,2);
+            let next = String(item.item_id).substring(2,4);
+            items.push({
+                itemId:item.item_id,
+                filename:item.filename,
+                path:`${first}/${next}/${item.item_id}/`
+            });
         }
 
-    })
+        console.log('done')
+
+    });
 })
+
