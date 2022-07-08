@@ -8,7 +8,7 @@ const swfCdnUrl = '';
 !fs.existsSync(`item_images`) && fs.mkdirSync(`item_images`);
 
 const downloadImage = ((uri, path, filename, callback) => {
-        request.head(uri, () => {
+    request.head(uri, () => {
         let pieces = path.split('/');
         !fs.existsSync(`item_images/${pieces[0]}`) && fs.mkdirSync(`item_images/${pieces[0]}`);
         !fs.existsSync(`item_images/${pieces[0]}/${pieces[1]}`) && fs.mkdirSync(`item_images/${pieces[0]}/${pieces[1]}`);
@@ -39,22 +39,25 @@ con.connect(err => {
             const path = `${first}/${next}/${item.item_id}`;
             const saveName = `${item.item_id}_60_60.gif`
 
-           /*
-            downloadImage(`${imageCdnUrl}/${path}/${saveName}`, `${first}/${next}`, saveName, () => {
-
-                console.log('done');
-            });
-  */
+            /*
+             downloadImage(`${imageCdnUrl}/${path}/${saveName}`, `${first}/${next}`, saveName, () => {
+                 console.log('done');
+             });
+   */
+            if(item.item_id > 999) {
+                console.log(`${imageCdnUrl}/${path}/${saveName}`)
+                downloadImage(`${imageCdnUrl}/${path}/${saveName}`, `${first}/${next}`, saveName, () => {
+                    console.log('done');
+                });
+            }
             items.push({
+                imageUrl:
                 itemId:item.item_id,
                 filename:item.filename,
                 path:`${first}/${next}/${item.item_id}`
             });
         }
 
-        downloadImage('https://yw-web.yoworld.com/cdn/items/29/96/29962/29962_130_100.gif', 'it/works', 'hair.png', function(){
-            console.log('done');
-        });
+
     });
 })
-
